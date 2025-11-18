@@ -1,13 +1,9 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
-
-export const metadata: Metadata {
+export const metadata: Metadata = {
   title: 'AI 图片生成助手 - 公众号封面图生成工具',
   description: '为公众号创作者提供简单、稳定、无侵权风险的 AI 封面图和文中插图生成工具',
   generator: 'v0.app',

@@ -1,43 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+async function generateSingleImage(prompt: string, size: string, apiKey: string): Promise<string> {
+  // 调用阿里云百炼API
+  const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "qwen-image-plus",
+      input: {
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ]
+      },
+      parameters: {
+        negative_prompt: "",
+        prompt_extend: true,
+        watermark: false,
+        size: size
+      }
+    }),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.text()
+    console.error('DashScope API error:', errorData)
+    throw new Error(`阿里云百炼API调用失败: ${response.status} ${response.statusText}`)
+  }
+
+  const data = await response.json()
+
+  // 检查API响应 - 检查是否有错误
+  if (data.code && data.code !== 200) {
+    console.error('DashScope API response:', JSON.stringify(data, null, 2))
+    throw new Error(`生成失败: ${data.message || data.code || '未知错误'}`)
+  }
+
+  // 获取图片URL - 根据实际API响应格式
+  const imageUrl = data.output?.choices?.[0]?.message?.content?.[0]?.image
+
+  if (!imageUrl) {
+    console.error('No image URL found in response:', JSON.stringify(data, null, 2))
+    throw new Error('未能获取生成的图片URL')
+  }
+
+  return imageUrl
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { prompt, size, mode } = body
 
-    // 这里是模拟的 API 调用
-    // 实际项目中，这里应该调用 OpenAI DALL·E 3 API 或 Stable Diffusion API
-    
-    // 示例 OpenAI API 调用结构（未实现）:
-    // const response = await fetch('https://api.openai.com/v1/images/generations', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-    //   },
-    //   body: JSON.stringify({
-    //     model: 'dall-e-3',
-    //     prompt,
-    //     size: size === '900x500' ? '1024x1024' : size,
-    //     n: 1,
-    //     quality: 'standard',
-    //   }),
-    // })
-    // const data = await response.json()
-    // return NextResponse.json({ imageUrl: data.data[0].url })
+    // 检查API密钥
+    const apiKey = process.env.DASHSCOPE_API_KEY
+    if (!apiKey) {
+      throw new Error('DASHSCOPE_API_KEY 环境变量未配置')
+    }
 
-    // 模拟延迟
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    let outputSize = "1328*1328" // 默认正方形
+    let basePrompt = prompt
 
-    // 返回模拟图片 URL（使用 placeholder）
-    const [width, height] = size.split('x')
-    const imageUrl = `/placeholder.svg?height=${height}&width=${width}&query=${encodeURIComponent(prompt)}`
+    if (mode === 'cover') {
+      outputSize = "1664*928" // 对应 900x500
+      basePrompt = `公众号封面图：${prompt}，适合公众号封面展示，简洁明了，具有视觉冲击力`
+    } else {
+      // 根据尺寸设置输出尺寸
+      if (size === "1792x1024") {
+        outputSize = "1664*928" // 横向
+      } else if (size === "1024x1792") {
+        outputSize = "928*1664" // 纵向
+      }
+    }
 
-    return NextResponse.json({ imageUrl })
+    // 并发生成两张相同尺寸的图片
+    const [image1Url, image2Url] = await Promise.all([
+      generateSingleImage(basePrompt, outputSize, apiKey),
+      generateSingleImage(basePrompt, outputSize, apiKey)
+    ])
+
+    return NextResponse.json({
+      images: [
+        { imageUrl: image1Url, size: mode === 'cover' ? '900x500' : size },
+        { imageUrl: image2Url, size: mode === 'cover' ? '900x500' : size }
+      ],
+      mode
+    })
   } catch (error) {
     console.error('Generation error:', error)
     return NextResponse.json(
-      { error: '生成失败，请稍后重试' },
+      {
+        error: '生成失败，请稍后重试',
+        details: error instanceof Error ? error.message : '未知错误'
+      },
       { status: 500 }
     )
   }

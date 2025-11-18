@@ -15,6 +15,17 @@ export interface GenerationResult {
   createdAt: number
 }
 
+export interface DualGenerationResult {
+  id: string
+  prompt: string
+  images: {
+    imageUrl: string
+    size: ImageSize
+  }[]
+  mode: 'normal' | 'cover'
+  createdAt: number
+}
+
 export interface GenerationHistory {
   results: GenerationResult[]
 }
