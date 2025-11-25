@@ -1,22 +1,62 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sparkles, History, ImageIcon } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ImageGenerator } from '@/components/image-generator'
 import { HistoryPanel } from '@/components/history-panel'
+import { ApiKeyDialog } from '@/components/api-key-dialog'
 
 export default function Home() {
   const [historyRefresh, setHistoryRefresh] = useState(0)
   const [activeTab, setActiveTab] = useState('generate')
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(true)
 
   const handleHistoryUpdate = () => {
     setHistoryRefresh((prev) => prev + 1)
   }
 
+  const checkApiKey = async () => {
+    try {
+      const response = await fetch('/api/config')
+      const data = await response.json()
+
+      if (!data.configured) {
+        setIsApiKeyConfigured(false)
+        setShowApiKeyDialog(true)
+      } else {
+        setIsApiKeyConfigured(true)
+      }
+    } catch (error) {
+      console.error('Failed to check API key:', error)
+    }
+  }
+
+  useEffect(() => {
+    checkApiKey()
+  }, [])
+
+  const handleApiKeySuccess = () => {
+    setShowApiKeyDialog(false)
+    // 提示用户刷新页面
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000)
+  }
+
+  const handleApiKeyClose = () => {
+    setShowApiKeyDialog(false)
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      <ApiKeyDialog
+        open={showApiKeyDialog}
+        onClose={handleApiKeyClose}
+        onSuccess={handleApiKeySuccess}
+      />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="text-center mb-12 space-y-4">
@@ -56,7 +96,12 @@ export default function Home() {
                   <CardDescription>输入提示词生成两张不同风格的 AI 图片</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ImageGenerator mode="normal" onHistoryUpdate={handleHistoryUpdate} />
+                  <ImageGenerator
+                    mode="normal"
+                    onHistoryUpdate={handleHistoryUpdate}
+                    isApiKeyConfigured={isApiKeyConfigured}
+                    onShowApiKeyDialog={() => setShowApiKeyDialog(true)}
+                  />
                 </CardContent>
               </Card>
 

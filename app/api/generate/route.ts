@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-async function generateSingleImage(prompt: string, size: string, apiKey: string): Promise<string> {
+async function generateSingleImage(prompt: string, size: string, apiKey: string, apiUrl: string): Promise<string> {
   // 调用阿里云百炼API
-  const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -61,10 +61,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { prompt, size, mode } = body
 
-    // 检查API密钥
+    // 检查API密钥和URL
     const apiKey = process.env.DASHSCOPE_API_KEY
+    const apiUrl = process.env.DASHSCOPE_API_URL
+
     if (!apiKey) {
       throw new Error('DASHSCOPE_API_KEY 环境变量未配置')
+    }
+
+    if (!apiUrl) {
+      throw new Error('DASHSCOPE_API_URL 环境变量未配置')
     }
 
     let outputSize = "1328*1328" // 默认正方形
@@ -84,8 +90,8 @@ export async function POST(request: NextRequest) {
 
     // 并发生成两张相同尺寸的图片
     const [image1Url, image2Url] = await Promise.all([
-      generateSingleImage(basePrompt, outputSize, apiKey),
-      generateSingleImage(basePrompt, outputSize, apiKey)
+      generateSingleImage(basePrompt, outputSize, apiKey, apiUrl),
+      generateSingleImage(basePrompt, outputSize, apiKey, apiUrl)
     ])
 
     return NextResponse.json({

@@ -20,9 +20,11 @@ import type { ImageSize, GenerationResult, DualGenerationResult } from '@/lib/ty
 interface ImageGeneratorProps {
   mode: 'normal'
   onHistoryUpdate?: () => void
+  isApiKeyConfigured?: boolean
+  onShowApiKeyDialog?: () => void
 }
 
-export function ImageGenerator({ mode, onHistoryUpdate }: ImageGeneratorProps) {
+export function ImageGenerator({ mode, onHistoryUpdate, isApiKeyConfigured = true, onShowApiKeyDialog }: ImageGeneratorProps) {
   const [prompt, setPrompt] = useState('')
   const [size, setSize] = useState<ImageSize>('1024x1024')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -30,6 +32,17 @@ export function ImageGenerator({ mode, onHistoryUpdate }: ImageGeneratorProps) {
   const { toast } = useToast()
 
   const handleGenerate = async () => {
+    // 检查 API key 是否配置
+    if (!isApiKeyConfigured) {
+      toast({
+        title: '请先配置 API Key',
+        description: '点击确定后将打开配置对话框',
+        variant: 'destructive',
+      })
+      onShowApiKeyDialog?.()
+      return
+    }
+
     if (!prompt.trim()) {
       toast({
         title: '请输入提示词',
