@@ -59,18 +59,18 @@ async function generateSingleImage(prompt: string, size: string, apiKey: string,
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { prompt, size, mode } = body
+    const { prompt, size, mode, apiKey: clientApiKey } = body
 
-    // 检查API密钥和URL
-    const apiKey = process.env.DASHSCOPE_API_KEY
-    const apiUrl = process.env.DASHSCOPE_API_URL
+    // 优先使用客户端传来的 API key，其次使用环境变量
+    const apiKey = clientApiKey || process.env.DASHSCOPE_API_KEY
+    const apiUrl = process.env.DASHSCOPE_API_URL || 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation'
 
     if (!apiKey) {
-      throw new Error('DASHSCOPE_API_KEY 环境变量未配置')
+      throw new Error('DASHSCOPE_API_KEY 未配置')
     }
 
     if (!apiUrl) {
-      throw new Error('DASHSCOPE_API_URL 环境变量未配置')
+      throw new Error('DASHSCOPE_API_URL 未配置')
     }
 
     let outputSize = "1328*1328" // 默认正方形

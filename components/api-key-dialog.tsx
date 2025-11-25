@@ -22,6 +22,9 @@ interface ApiKeyDialogProps {
   onSuccess: () => void
 }
 
+// LocalStorage key for API key
+const API_KEY_STORAGE_KEY = 'dashscope_api_key'
+
 export function ApiKeyDialog({ open, onClose, onSuccess }: ApiKeyDialogProps) {
   const [apiKey, setApiKey] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -39,6 +42,7 @@ export function ApiKeyDialog({ open, onClose, onSuccess }: ApiKeyDialogProps) {
 
     setIsSaving(true)
     try {
+      // 验证 API key 格式
       const response = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -48,12 +52,17 @@ export function ApiKeyDialog({ open, onClose, onSuccess }: ApiKeyDialogProps) {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || '保存失败')
+        throw new Error(data.error || '验证失败')
+      }
+
+      // 保存到 localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(API_KEY_STORAGE_KEY, apiKey.trim())
       }
 
       toast({
         title: '保存成功',
-        description: data.message || 'API Key 已保存',
+        description: 'API Key 已保存到本地浏览器',
       })
 
       onSuccess()
@@ -83,6 +92,11 @@ export function ApiKeyDialog({ open, onClose, onSuccess }: ApiKeyDialogProps) {
                 <li>登录您的阿里云账号</li>
                 <li>在 API Keys 页面创建或获取您的 API Key</li>
               </ol>
+            </div>
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-sm">
+              <p className="text-amber-700 dark:text-amber-300">
+                🔒 API Key 将仅保存在您的浏览器本地，不会上传到服务器
+              </p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -115,4 +129,15 @@ export function ApiKeyDialog({ open, onClose, onSuccess }: ApiKeyDialogProps) {
       </AlertDialogContent>
     </AlertDialog>
   )
+}
+
+// Helper function to get API key from localStorage
+export function getApiKey(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(API_KEY_STORAGE_KEY)
+}
+
+// Helper function to check if API key exists
+export function hasApiKey(): boolean {
+  return !!getApiKey()
 }

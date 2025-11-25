@@ -6,31 +6,42 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ImageGenerator } from '@/components/image-generator'
 import { HistoryPanel } from '@/components/history-panel'
-import { ApiKeyDialog } from '@/components/api-key-dialog'
+import { ApiKeyDialog, hasApiKey } from '@/components/api-key-dialog'
 
 export default function Home() {
   const [historyRefresh, setHistoryRefresh] = useState(0)
   const [activeTab, setActiveTab] = useState('generate')
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
-  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(true)
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false)
 
   const handleHistoryUpdate = () => {
     setHistoryRefresh((prev) => prev + 1)
   }
 
   const checkApiKey = async () => {
+    // 首先检查客户端 localStorage
+    const clientHasKey = hasApiKey()
+
+    if (clientHasKey) {
+      setIsApiKeyConfigured(true)
+      return
+    }
+
+    // 如果客户端没有，检查服务器端环境变量
     try {
       const response = await fetch('/api/config')
       const data = await response.json()
 
-      if (!data.configured) {
+      if (data.configured) {
+        setIsApiKeyConfigured(true)
+      } else {
         setIsApiKeyConfigured(false)
         setShowApiKeyDialog(true)
-      } else {
-        setIsApiKeyConfigured(true)
       }
     } catch (error) {
       console.error('Failed to check API key:', error)
+      setIsApiKeyConfigured(false)
+      setShowApiKeyDialog(true)
     }
   }
 
@@ -40,10 +51,7 @@ export default function Home() {
 
   const handleApiKeySuccess = () => {
     setShowApiKeyDialog(false)
-    // 提示用户刷新页面
-    setTimeout(() => {
-      window.location.reload()
-    }, 1000)
+    setIsApiKeyConfigured(true)
   }
 
   const handleApiKeyClose = () => {

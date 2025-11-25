@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import path from 'path'
 
-const ENV_PATH = path.join(process.cwd(), '.env.local')
-
-// 检查 API key 是否已配置
+// 检查服务器端的 API key 配置（从环境变量）
 export async function GET() {
   try {
     const apiKey = process.env.DASHSCOPE_API_KEY
@@ -13,7 +9,8 @@ export async function GET() {
     return NextResponse.json({
       configured: !!(apiKey && apiUrl),
       hasKey: !!apiKey,
-      hasUrl: !!apiUrl
+      hasUrl: !!apiUrl,
+      isServerSide: true // 标记这是服务器端配置
     })
   } catch (error) {
     console.error('Check config error:', error)
@@ -24,7 +21,7 @@ export async function GET() {
   }
 }
 
-// 保存 API key 到 .env.local
+// 验证 API key 是否有效
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -37,50 +34,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 读取现有的 .env.local 文件
-    let envContent = ''
-    try {
-      envContent = await fs.readFile(ENV_PATH, 'utf-8')
-    } catch (error) {
-      // 文件不存在，创建新文件
-      console.log('.env.local not found, creating new file')
+    // 验证 API key 格式（基本验证）
+    if (!apiKey.trim().startsWith('sk-')) {
+      return NextResponse.json(
+        { error: 'API Key 格式不正确，应以 sk- 开头' },
+        { status: 400 }
+      )
     }
 
-    // 更新或添加 API key
-    const lines = envContent.split('\n')
-    let keyFound = false
-    const newLines = lines.map(line => {
-      if (line.startsWith('DASHSCOPE_API_KEY=')) {
-        keyFound = true
-        return `DASHSCOPE_API_KEY=${apiKey.trim()}`
-      }
-      return line
-    })
-
-    if (!keyFound) {
-      newLines.push(`DASHSCOPE_API_KEY=${apiKey.trim()}`)
-    }
-
-    // 确保有 API URL
-    const hasUrl = newLines.some(line => line.startsWith('DASHSCOPE_API_URL='))
-    if (!hasUrl) {
-      newLines.push('DASHSCOPE_API_URL=https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation')
-    }
-
-    // 写入文件
-    await fs.writeFile(ENV_PATH, newLines.join('\n'), 'utf-8')
-
-    // 更新当前进程的环境变量（需要重启 Next.js dev server 才能生效）
-    process.env.DASHSCOPE_API_KEY = apiKey.trim()
-
+    // 这里可以选择性地测试 API key 是否有效
+    // 但为了简化，我们只做格式验证
     return NextResponse.json({
       success: true,
-      message: 'API Key 已保存，请刷新页面以应用更改'
+      message: 'API Key 格式验证通过，已保存到本地'
     })
   } catch (error) {
-    console.error('Save config error:', error)
+    console.error('Validate config error:', error)
     return NextResponse.json(
-      { error: '保存配置失败' },
+      { error: '验证配置失败' },
       { status: 500 }
     )
   }

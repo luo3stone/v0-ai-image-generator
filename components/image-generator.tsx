@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { historyStorage } from '@/lib/storage'
 import type { ImageSize, GenerationResult, DualGenerationResult } from '@/lib/types'
+import { getApiKey } from '@/components/api-key-dialog'
 
 interface ImageGeneratorProps {
   mode: 'normal'
@@ -33,7 +34,9 @@ export function ImageGenerator({ mode, onHistoryUpdate, isApiKeyConfigured = tru
 
   const handleGenerate = async () => {
     // 检查 API key 是否配置
-    if (!isApiKeyConfigured) {
+    const apiKey = getApiKey()
+
+    if (!isApiKeyConfigured && !apiKey) {
       toast({
         title: '请先配置 API Key',
         description: '点击确定后将打开配置对话框',
@@ -59,7 +62,12 @@ export function ImageGenerator({ mode, onHistoryUpdate, isApiKeyConfigured = tru
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, size, mode }),
+        body: JSON.stringify({
+          prompt,
+          size,
+          mode,
+          apiKey: apiKey || undefined // 传递客户端的 API key
+        }),
       })
 
       if (!response.ok) {
